@@ -13,8 +13,16 @@ contract RPS is CommitReveal {
     uint public numPlayer = 0;
     uint public reward = 0;
     mapping (uint => Player) public player;
+    mapping (uint => bytes32) public choices;
     uint public numInput = 0;
     uint public numReveal = 0;
+
+    constructor() {
+        choices[0] = "Rock"; 
+        choices[1] = "Paper"; 
+        choices[2] = "Scissors"; 
+    }
+    
 
     function addPlayer() public payable {
         require(numPlayer < 2);
@@ -25,11 +33,10 @@ contract RPS is CommitReveal {
         numPlayer++;
     }
 
-    function input(uint hashedAnswer , uint idx) public  {
+    function input(bytes32 hashedAnswer , uint idx) public  {
         require(numPlayer == 2);
         require(numInput < 2);
         require(msg.sender == player[idx].addr);
-        require(choice == 0 || choice == 1 || choice == 2);
         commit(hashedAnswer);
         player[idx].hashedChoice = hashedAnswer;
         numInput++;
@@ -40,12 +47,27 @@ contract RPS is CommitReveal {
       require(choice == 0 || choice == 1 || choice == 2);
       require(msg.sender == player[idx].addr);
       reveal(player[idx].hashedChoice);
-      revealAnswer(choice , salt);
+      revealAnswer(choices[choice] , salt);
       player[idx].choice = choice;
       numReveal++;
       if (numReveal == 2) {
           _checkWinnerAndPay();
       }
+    }
+
+    function _getChoiceBase(uint32 choice) private pure returns(bytes32) {
+        if(choice == 0) {
+            return "R";
+        } else if (choice == 1) {
+            return "P";
+        } else {
+            return "S";
+        }
+    }
+
+    function getChoiceHash(uint32 choice, bytes32 salt) public view returns(bytes32) {
+        require(choice == 0 || choice == 1 || choice == 2);
+        return getSaltedHash(_getChoiceBase(choice), salt);
     }
 
     function _checkWinnerAndPay() private {
