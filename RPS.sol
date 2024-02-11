@@ -2,15 +2,19 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract RPS {
+import "./CommitReveal.sol";
+
+contract RPS is CommitReveal {
     struct Player {
         uint choice; // 0 - Rock, 1 - Paper , 2 - Scissors, 3 - undefined
+        bytes32 hashedChoice;
         address addr;
     }
     uint public numPlayer = 0;
     uint public reward = 0;
     mapping (uint => Player) public player;
     uint public numInput = 0;
+    uint public numReveal = 0;
 
     function addPlayer() public payable {
         require(numPlayer < 2);
@@ -21,15 +25,26 @@ contract RPS {
         numPlayer++;
     }
 
-    function input(uint choice, uint idx) public  {
+    function input(uint hashedAnswer , uint idx) public  {
         require(numPlayer == 2);
+        require(numInput < 2);
         require(msg.sender == player[idx].addr);
         require(choice == 0 || choice == 1 || choice == 2);
-        player[idx].choice = choice;
-        numInput++;
-        if (numInput == 2) {
-            _checkWinnerAndPay();
-        }
+        player[idx].hashedChoice = hashedAnswer;
+        commit(hashedAnswer);
+    }
+
+    function revealRequest(bytes32 salt, uint choice , uint idx) public {
+      require(numInput == 2);
+      require(choice == 0 || choice == 1 || choice == 2);
+      require(msg.sender == player[idx].addr);
+      reveal(player[idx].hashedChoice);
+      revealAnswer(choice , salt);
+      player[idx].choice = choice;
+      numReveal++;
+      if (numReveal == 2) {
+          _checkWinnerAndPay();
+      }
     }
 
     function _checkWinnerAndPay() private {
