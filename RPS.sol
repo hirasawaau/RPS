@@ -30,8 +30,9 @@ contract RPS is CommitReveal {
         require(numInput < 2);
         require(msg.sender == player[idx].addr);
         require(choice == 0 || choice == 1 || choice == 2);
-        player[idx].hashedChoice = hashedAnswer;
         commit(hashedAnswer);
+        player[idx].hashedChoice = hashedAnswer;
+        numInput++;
     }
 
     function revealRequest(bytes32 salt, uint choice , uint idx) public {
