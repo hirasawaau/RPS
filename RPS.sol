@@ -13,15 +13,9 @@ contract RPS is CommitReveal {
     uint public numPlayer = 0;
     uint public reward = 0;
     mapping (uint => Player) public player;
-    mapping (uint => bytes32) public choices;
     uint public numInput = 0;
     uint public numReveal = 0;
 
-    constructor() {
-        choices[0] = "Rock"; 
-        choices[1] = "Paper"; 
-        choices[2] = "Scissors"; 
-    }
     
 
     function addPlayer() public payable {
@@ -42,12 +36,12 @@ contract RPS is CommitReveal {
         numInput++;
     }
 
-    function revealRequest(bytes32 salt, uint choice , uint idx) public {
+    function revealRequest(bytes32 salt, uint32 choice , uint idx) public {
       require(numInput == 2);
       require(choice == 0 || choice == 1 || choice == 2);
       require(msg.sender == player[idx].addr);
       reveal(player[idx].hashedChoice);
-      revealAnswer(choices[choice] , salt);
+      revealAnswer(_getChoiceBase(choice) , salt);
       player[idx].choice = choice;
       numReveal++;
       if (numReveal == 2) {
