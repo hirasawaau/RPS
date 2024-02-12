@@ -57,7 +57,7 @@ contract RPS is CommitReveal {
 
     function revealRequest(bytes32 salt, uint32 choice , uint idx) public {
       require(numInput == 2);
-      require(choice == 0 || choice == 1 || choice == 2);
+      require(choice >= 0 || choice < 7);
       require(msg.sender == player[idx].addr);
       reveal(player[idx].hashedChoice);
       revealAnswer(_getChoiceBase(choice) , salt);
@@ -69,13 +69,13 @@ contract RPS is CommitReveal {
     }
 
     function _getChoiceBase(uint32 choice) private pure returns(bytes32) {
-        if(choice == 0) {
-            return "R";
-        } else if (choice == 1) {
-            return "P";
-        } else {
-            return "S";
-        }
+        if(choice == 0) return "Rock";
+        else if(choice == 1) return "Fire";
+        else if (choice == 2) return "Scissors";
+        else if (choice == 3) return "Sponge";
+        else if (choice == 4) return "Paper";
+        else if (choice == 5) return "Air";
+        else return "Water";
     }
 
     function getChoiceHash(uint32 choice, bytes32 salt) public view returns(bytes32) {
@@ -88,18 +88,20 @@ contract RPS is CommitReveal {
         uint p1Choice = player[1].choice;
         address payable account0 = payable(player[0].addr);
         address payable account1 = payable(player[1].addr);
-        if ((p0Choice + 1) % 3 == p1Choice) {
-            // to pay player[1]
-            account1.transfer(reward);
-        }
-        else if ((p1Choice + 1) % 3 == p0Choice) {
-            // to pay player[0]
-            account0.transfer(reward);    
-        }
-        else {
-            // to split reward
+        
+        if(p0Choice == p1Choice) {
             account0.transfer(reward / 2);
             account1.transfer(reward / 2);
+        } else {
+            for(uint8 i =1 ; i<=3 ; i++) {
+                if((p0Choice + i) % 7 == p1Choice) {
+                    account0.transfer(reward);
+                    break;
+                } else if((p1Choice + i) % 7 == p0Choice) {
+                    account1.transfer(reward);
+                    break;
+                }
+            }
         }
     }
 }
