@@ -15,6 +15,8 @@ contract RPS is CommitReveal {
     mapping (uint => Player) public player;
     uint public numInput = 0;
     uint public numReveal = 0;
+    uint256 public deadline = type(uint256).max;
+    uint256 public DURATION = 5 minutes;
 
     
 
@@ -22,6 +24,7 @@ contract RPS is CommitReveal {
         require(numPlayer < 2);
         require(msg.value == 1 ether);
         reward += msg.value;
+        deadline = block.timestamp + DURATION;
         player[numPlayer].addr = msg.sender;
         player[numPlayer].choice = 3;
         numPlayer++;
@@ -34,6 +37,22 @@ contract RPS is CommitReveal {
         commit(hashedAnswer);
         player[idx].hashedChoice = hashedAnswer;
         numInput++;
+        deadline += 3 minutes;
+    }
+
+    // If player not answered for
+    function requestRefund(uint idx) public {
+        require(msg.sender == player[idx].addr);
+        require(block.timestamp > deadline);
+        require(numPlayer > 0);
+        if(numPlayer == 1) {
+            address payable account = payable(player[idx].addr);
+            account.transfer(reward);
+        } else {
+            require(player[idx].hashedChoice != 0x00);
+            address payable account = payable(player[idx].addr);
+            account.transfer(reward);
+        }
     }
 
     function revealRequest(bytes32 salt, uint32 choice , uint idx) public {
