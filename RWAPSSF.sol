@@ -28,7 +28,7 @@ contract RWAPSSF is CommitReveal {
         deadline = block.timestamp + DURATION;
         uint8 idx = numPlayer++;
         players[idx].addr = msg.sender;
-        emit PlayerJoin(msg.sender, numPlayer++);
+        emit PlayerJoin(msg.sender, idx);
     }
 
     event PlayerJoin(address addr, uint256 idx);
