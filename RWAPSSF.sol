@@ -4,100 +4,144 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./CommitReveal.sol";
 
-contract RPS is CommitReveal {
+contract RWAPSSF is CommitReveal {
     struct Player {
-        uint choice; // 0 - Rock, 1 - Paper , 2 - Scissors, 3 - undefined
+        uint8 choice; // 0 - Rock, 1 - Paper , 2 - Scissors, 3 - undefined
         bytes32 hashedChoice;
+        bool isCommited;
+        bool isRevealed;
         address addr;
     }
-    uint public numPlayer = 0;
-    uint public reward = 0;
-    mapping (uint => Player) public player;
-    uint public numInput = 0;
-    uint public numReveal = 0;
+    uint8 public numPlayer = 0;
+    uint256 public reward = 0;
+    mapping(uint8 => Player) public players;
+    uint8 public numInput = 0;
+    uint8 public numReveal = 0;
     uint256 public deadline = type(uint256).max;
     uint256 public DURATION = 5 minutes;
-
-    
 
     function addPlayer() public payable {
         require(numPlayer < 2);
         require(msg.value == 1 ether);
         reward += msg.value;
         deadline = block.timestamp + DURATION;
-        player[numPlayer].addr = msg.sender;
-        player[numPlayer].choice = 3;
-        numPlayer++;
+        uint8 idx = numPlayer++;
+        players[idx].addr = msg.sender;
+        emit PlayerJoin(msg.sender, numPlayer++);
     }
 
-    function input(bytes32 hashedAnswer , uint idx) public  {
-        require(numPlayer == 2);
-        require(numInput < 2);
-        require(msg.sender == player[idx].addr);
+    event PlayerJoin(address addr, uint256 idx);
+
+    function input(bytes32 hashedAnswer, uint8 idx) public {
+        require(
+            players[idx].addr == msg.sender,
+            "Error(RWAPSSF::input): You are not owner of this player"
+        );
+        require(
+            !players[idx].isCommited,
+            "Error(RWAPSSF::input): You are commited"
+        );
+        require(numPlayer == 2, "Error(RWAPSSF::input): Player not enough");
+        require(
+            numInput < 2,
+            "Error(RWAPSSF::input): All player inputed, Please revealRequest"
+        );
         commit(hashedAnswer);
-        player[idx].hashedChoice = hashedAnswer;
+        players[idx].hashedChoice = hashedAnswer;
+        players[idx].isCommited = true;
         numInput++;
         deadline += 3 minutes;
+        emit PlayerCommited(msg.sender);
     }
 
+    event PlayerCommited(address player);
+
     // If player not answered for
-    function requestRefund(uint idx) public {
-        require(msg.sender == player[idx].addr);
-        require(block.timestamp > deadline);
-        require(numPlayer > 0);
-        if(numPlayer == 1) {
-            address payable account = payable(player[idx].addr);
+    function requestRefund(uint8 idx) public {
+        require(
+            players[idx].addr == msg.sender,
+            "Error(RWAPSSF::requestRefund): You are not owner of this player"
+        );
+        require(
+            block.timestamp > deadline,
+            "Error(RWAPSSF::requestRefund): Time not enough"
+        );
+        require(numPlayer > 0, "Error: No Player!!");
+        address payable account = payable(msg.sender);
+        // Case: Player waiting long time
+        if (numPlayer == 1) {
             account.transfer(reward);
         } else {
-            require(player[idx].hashedChoice != 0x00);
-            address payable account = payable(player[idx].addr);
-            account.transfer(reward);
+            // Case: Player waiting commit long time
+            if (numInput < 2) {
+                require(
+                    players[idx].isCommited,
+                    "Error(RWAPSSF::requestRefund): You have not commited pls commit if not your money will return to another player."
+                );
+                account.transfer(reward);
+                // Case: Player waiting reveal long time
+            } else {
+                require(
+                    numReveal < 2,
+                    "Error(RWAPSSF::requestRefund): All player revealed"
+                );
+                require(
+                    players[idx].isRevealed,
+                    "Error(RWAPSSF::requestRefund): You have not revealed pls reveal if not your money will return to another player."
+                );
+                account.transfer(reward);
+            }
+        }
+
+        emit RefundCompleted(idx);
+    }
+
+    event RefundCompleted(uint8 idx);
+
+    function revealRequest(
+        string memory salt,
+        uint8 choice,
+        uint8 idx
+    ) public {
+        require(numInput == 2);
+        require(choice >= 0 || choice < 7);
+        require(msg.sender == players[idx].addr);
+        bytes32 bSalt = bytes32(abi.encodePacked(salt));
+        bytes32 bChoice = bytes32(abi.encodePacked(choice));
+
+        revealAnswer(bChoice, bSalt);
+        players[idx].choice = choice;
+        numReveal++;
+        if (numReveal == 2) {
+            _checkWinnerAndPay();
         }
     }
 
-    function revealRequest(bytes32 salt, uint32 choice , uint idx) public {
-      require(numInput == 2);
-      require(choice >= 0 || choice < 7);
-      require(msg.sender == player[idx].addr);
-      reveal(player[idx].hashedChoice);
-      revealAnswer(_getChoiceBase(choice) , salt);
-      player[idx].choice = choice;
-      numReveal++;
-      if (numReveal == 2) {
-          _checkWinnerAndPay();
-      }
-    }
-
-    function _getChoiceBase(uint32 choice) private pure returns(bytes32) {
-        if(choice == 0) return "Rock";
-        else if(choice == 1) return "Fire";
-        else if (choice == 2) return "Scissors";
-        else if (choice == 3) return "Sponge";
-        else if (choice == 4) return "Paper";
-        else if (choice == 5) return "Air";
-        else return "Water";
-    }
-
-    function getChoiceHash(uint32 choice, bytes32 salt) public view returns(bytes32) {
-        require(choice == 0 || choice == 1 || choice == 2);
-        return getSaltedHash(_getChoiceBase(choice), salt);
+    function getChoiceHash(uint8 choice, string memory salt)
+        public
+        view
+        returns (bytes32)
+    {
+        bytes32 bSalt = bytes32(abi.encodePacked(salt));
+        bytes32 bChoice = bytes32(abi.encodePacked(choice));
+        return getSaltedHash(bChoice, bSalt);
     }
 
     function _checkWinnerAndPay() private {
-        uint p0Choice = player[0].choice;
-        uint p1Choice = player[1].choice;
-        address payable account0 = payable(player[0].addr);
-        address payable account1 = payable(player[1].addr);
-        
-        if(p0Choice == p1Choice) {
+        uint256 p0Choice = players[0].choice;
+        uint256 p1Choice = players[1].choice;
+        address payable account0 = payable(players[0].addr);
+        address payable account1 = payable(players[1].addr);
+
+        if (p0Choice == p1Choice) {
             account0.transfer(reward / 2);
             account1.transfer(reward / 2);
         } else {
-            for(uint8 i =1 ; i<=3 ; i++) {
-                if((p0Choice + i) % 7 == p1Choice) {
+            for (uint8 i = 1; i <= 3; i++) {
+                if ((p0Choice + i) % 7 == p1Choice) {
                     account0.transfer(reward);
                     break;
-                } else if((p1Choice + i) % 7 == p0Choice) {
+                } else if ((p1Choice + i) % 7 == p0Choice) {
                     account1.transfer(reward);
                     break;
                 }
