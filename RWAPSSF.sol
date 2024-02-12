@@ -22,7 +22,7 @@ contract RWAPSSF is CommitReveal {
     uint256 public constant PRICE = 2 ether;
 
     function addPlayer() public payable {
-        require(numPlayer <= 2 , "Error(RWAPSSF::addPlayer): Full Player");
+        require(numPlayer < 2 , "Error(RWAPSSF::addPlayer): Full Player");
         require(msg.value == PRICE, "Error(RWAPSSF::addPlayer): Ether is not enough.");
         reward += msg.value;
         deadline = block.timestamp + DURATION;
