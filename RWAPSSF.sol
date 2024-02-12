@@ -104,9 +104,9 @@ contract RWAPSSF is CommitReveal {
         uint8 choice,
         uint8 idx
     ) public {
-        require(numInput == 2);
-        require(choice >= 0 || choice < 7);
-        require(msg.sender == players[idx].addr);
+        require(msg.sender == players[idx].addr, "Error(RWAPSSF::revealRequest): You are not owner of this player");
+        require(numInput == 2 , "Error(RWAPSSF::revealRequest): Some player haven't commited.");
+        require(choice >= 0 || choice < 7, "Error(RWAPSSF::revealRequest): Choice is not correct.");
         bytes32 bSalt = bytes32(abi.encodePacked(salt));
         bytes32 bChoice = bytes32(abi.encodePacked(choice));
 
@@ -123,6 +123,7 @@ contract RWAPSSF is CommitReveal {
         view
         returns (bytes32)
     {
+        require(choice >= 0 && choice < 7, "Error(RWAPSSF::getChoiceHash): Choice is not correct!!!");
         bytes32 bSalt = bytes32(abi.encodePacked(salt));
         bytes32 bChoice = bytes32(abi.encodePacked(choice));
         return getSaltedHash(bChoice, bSalt);
@@ -133,6 +134,7 @@ contract RWAPSSF is CommitReveal {
         uint256 p1Choice = players[1].choice;
         address payable account0 = payable(players[0].addr);
         address payable account1 = payable(players[1].addr);
+        address winner;
 
         if (p0Choice == p1Choice) {
             account0.transfer(reward / 2);
@@ -141,12 +143,18 @@ contract RWAPSSF is CommitReveal {
             for (uint8 i = 1; i <= 3; i++) {
                 if ((p0Choice + i) % 7 == p1Choice) {
                     account0.transfer(reward);
+                    winner = account0;
                     break;
                 } else if ((p1Choice + i) % 7 == p0Choice) {
                     account1.transfer(reward);
+                    winner = account1;
                     break;
                 }
             }
         }
+
+        emit Winner(winner);
     }
+
+    event Winner(address winner);
 }
