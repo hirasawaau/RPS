@@ -33,6 +33,11 @@ Contract gives you 5 minutes for decision your choice and commit the hash if ano
 
 Contract gives you 3 minutes from last player committing for reveal your choice if another player doesn't reveal the choice player can refund money and take another player's money to his/her pocket.
 
+## Modified Code
+- Change `uint256` to `uint8` for `numPlayer`, `numInput`
+- Add `numReveal` for counting reveal players
+- Add Error Message
+- Add event for function
 ## Example
 
 ### Win and Lose
