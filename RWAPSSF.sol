@@ -11,6 +11,7 @@ contract RWAPSSF is CommitReveal {
         bool isCommited;
         bool isRevealed;
         address addr;
+        uint8 score;
     }
     uint8 public numPlayer = 0;
     uint256 public reward = 0;
@@ -22,7 +23,7 @@ contract RWAPSSF is CommitReveal {
     uint256 public constant PRICE = 2 ether;
 
     function addPlayer() public payable {
-        require(numPlayer < 2 , "Error(RWAPSSF::addPlayer): Full Player");
+        require(numPlayer < 3 , "Error(RWAPSSF::addPlayer): Full Player");
         require(msg.value == PRICE, "Error(RWAPSSF::addPlayer): Ether is not enough.");
         reward += msg.value;
         deadline = block.timestamp + DURATION;
@@ -105,7 +106,7 @@ contract RWAPSSF is CommitReveal {
         uint8 idx
     ) public {
         require(msg.sender == players[idx].addr, "Error(RWAPSSF::revealRequest): You are not owner of this player");
-        require(numInput == 2 , "Error(RWAPSSF::revealRequest): Some player haven't commited.");
+        require(numInput == 3 , "Error(RWAPSSF::revealRequest): Some players haven't commited.");
         require(choice >= 0 || choice < 7, "Error(RWAPSSF::revealRequest): Choice is not correct.");
         bytes32 bSalt = bytes32(abi.encodePacked(salt));
         bytes32 bChoice = bytes32(abi.encodePacked(choice));
@@ -132,8 +133,10 @@ contract RWAPSSF is CommitReveal {
     function _checkWinnerAndPay() private {
         uint256 p0Choice = players[0].choice;
         uint256 p1Choice = players[1].choice;
+        uint256 p2Choice = players[2].choice;
         address payable account0 = payable(players[0].addr);
         address payable account1 = payable(players[1].addr);
+        address payable account2 = payable(players[2].addr);
         address winner;
 
         if (p0Choice == p1Choice) {
