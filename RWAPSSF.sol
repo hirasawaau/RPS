@@ -11,6 +11,7 @@ contract RWAPSSF is CommitReveal {
         bool isCommited;
         bool isRevealed;
         address addr;
+        uint8 score;
     }
     uint8 public numPlayer = 0;
     uint256 public reward = 0;
@@ -22,8 +23,11 @@ contract RWAPSSF is CommitReveal {
     uint256 public constant PRICE = 2 ether;
 
     function addPlayer() public payable {
-        require(numPlayer < 2 , "Error(RWAPSSF::addPlayer): Full Player");
-        require(msg.value == PRICE, "Error(RWAPSSF::addPlayer): Ether is not enough.");
+        require(numPlayer < 3, "Error(RWAPSSF::addPlayer): Full Player");
+        require(
+            msg.value == PRICE,
+            "Error(RWAPSSF::addPlayer): Ether is not enough."
+        );
         reward += msg.value;
         deadline = block.timestamp + DURATION;
         uint8 idx = numPlayer++;
@@ -104,9 +108,18 @@ contract RWAPSSF is CommitReveal {
         uint8 choice,
         uint8 idx
     ) public {
-        require(msg.sender == players[idx].addr, "Error(RWAPSSF::revealRequest): You are not owner of this player");
-        require(numInput == 2 , "Error(RWAPSSF::revealRequest): Some player haven't commited.");
-        require(choice >= 0 || choice < 7, "Error(RWAPSSF::revealRequest): Choice is not correct.");
+        require(
+            msg.sender == players[idx].addr,
+            "Error(RWAPSSF::revealRequest): You are not owner of this player"
+        );
+        require(
+            numInput == 3,
+            "Error(RWAPSSF::revealRequest): Some players haven't commited."
+        );
+        require(
+            choice >= 0 || choice < 7,
+            "Error(RWAPSSF::revealRequest): Choice is not correct."
+        );
         bytes32 bSalt = bytes32(abi.encodePacked(salt));
         bytes32 bChoice = bytes32(abi.encodePacked(choice));
 
@@ -123,32 +136,63 @@ contract RWAPSSF is CommitReveal {
         view
         returns (bytes32)
     {
-        require(choice >= 0 && choice < 7, "Error(RWAPSSF::getChoiceHash): Choice is not correct!!!");
+        require(
+            choice >= 0 && choice < 7,
+            "Error(RWAPSSF::getChoiceHash): Choice is not correct!!!"
+        );
         bytes32 bSalt = bytes32(abi.encodePacked(salt));
         bytes32 bChoice = bytes32(abi.encodePacked(choice));
         return getSaltedHash(bChoice, bSalt);
     }
 
-    function _checkWinnerAndPay() private {
-        uint256 p0Choice = players[0].choice;
-        uint256 p1Choice = players[1].choice;
-        address payable account0 = payable(players[0].addr);
-        address payable account1 = payable(players[1].addr);
-        address winner;
-
-        if (p0Choice == p1Choice) {
-            account0.transfer(reward / 2);
-            account1.transfer(reward / 2);
+    function _winner(uint8 a, uint8 b) private view returns (int8) {
+        if (players[a].choice == players[b].choice) {
+            return -1;
         } else {
             for (uint8 i = 1; i <= 3; i++) {
-                if ((p0Choice + i) % 7 == p1Choice) {
-                    account0.transfer(reward);
-                    winner = account0;
-                    break;
-                } else if ((p1Choice + i) % 7 == p0Choice) {
-                    account1.transfer(reward);
-                    winner = account1;
-                    break;
+                if ((players[a].choice + i) % 7 == players[b].choice) {
+                    return a;
+                } else if ((players[b].choice + i) % 7 == players[a].choice) {
+                    return b;
+                }
+            }
+        }
+    }
+
+    function _checkWinnerAndPay() private {
+        // uint256 p0Choice = players[0].choice;
+        // uint256 p1Choice = players[1].choice;
+        // uint256 p2Choice = players[2].choice;
+        // address payable account0 = payable(players[0].addr);
+        // address payable account1 = payable(players[1].addr);
+        // address payable account2 = payable(players[2].addr);
+        // address winner;
+
+        // if (p0Choice == p1Choice) {
+        //     account0.transfer(reward / 2);
+        //     account1.transfer(reward / 2);
+        // } else {
+        //     for (uint8 i = 1; i <= 3; i++) {
+        //         if ((p0Choice + i) % 7 == p1Choice) {
+        //             account0.transfer(reward);
+        //             winner = account0;
+        //             break;
+        //         } else if ((p1Choice + i) % 7 == p0Choice) {
+        //             account1.transfer(reward);
+        //             winner = account1;
+        //             break;
+        //         }
+        //     }
+        // }
+
+        for (uint8 i = 0; i < 3; i++) {
+            for (uint256 j = i + 1; j < 3; j++) {
+                int8 winner = _winner(i,j)
+                if(winner == -1) {
+                    players[i].score++;
+                    players[j].score++;
+                } else {
+                    players[winner].score+=3;
                 }
             }
         }
